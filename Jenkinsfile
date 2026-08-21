@@ -19,14 +19,19 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                // Mounts the frontend directory where package.json is located
-                sh '''
-                    docker run --rm \
-                        -v "${WORKSPACE}/frontend:/app" \
-                        -w /app \
-                        node:18-alpine \
-                        sh -c "npm test || true"
-                '''
+                dir('frontend') {
+                    sh '''
+                        if [ -f package.json ]; then
+                            docker run --rm \
+                                -v "$(pwd):/app" \
+                                -w /app \
+                                node:18-alpine \
+                                sh -c "npm test || true"
+                        else
+                            echo "No package.json found in frontend directory. Skipping unit tests."
+                        fi
+                    '''
+                }
             }
         }
 
@@ -44,7 +49,7 @@ pipeline {
                                 sonarsource/sonar-scanner-cli \
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
-                                -Dsonar.sources=frontend,backend
+                                -Dsonar.sources=.
                         '''
                     }
                 }
@@ -75,11 +80,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Points the build context directly to the frontend directory
-                    dockerImage = docker.build(
-                        "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}",
-                        "./frontend"
-                    )
+                    dir('frontend') {
+                        dockerImage = docker.build("${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}")
+                    }
                 }
             }
         }
@@ -107,28 +110,6 @@ pipeline {
                 }
             }
         }
-
-        /* 
-        ===================================================================
-        STAGED FOR LATER (Uncomment when EKS + Argo CD are ready):
-        ===================================================================
-        stage('Update GitOps Manifests') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'github-pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
-                    sh '''
-                        git clone https://${GIT_TOKEN}@github.com/your-username/ecommerce-gitops.git
-                        cd ecommerce-gitops
-                        sed -i "s|image: .*|image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}|g" k8s/deployment.yaml
-                        git config user.name "Jenkins CI"
-                        git config user.email "jenkins@yourdomain.com"
-                        git add k8s/deployment.yaml
-                        git commit -m "ci: update image tag to ${IMAGE_TAG}"
-                        git push origin main
-                    '''
-                }
-            }
-        }
-        */
     }
 
     post {
