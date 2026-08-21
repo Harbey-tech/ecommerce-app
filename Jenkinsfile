@@ -7,6 +7,7 @@ pipeline {
         ECR_REPO_NAME     = 'ecommerce-app'
         IMAGE_TAG         = "${BUILD_NUMBER}"
         SONAR_SERVER_NAME = 'sonar-server' // Configured in Jenkins system settings
+        DOCKER_NETWORK    = 'bridge'       // Change to your custom network name if using one (e.g., 'jenkins-net')
     }
 
     stages {
@@ -18,7 +19,14 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                sh 'npm test || true' // Replace with your test runner (e.g., mvn test, pytest)
+                // Runs npm inside a container to fix "npm: not found"
+                sh '''
+                    docker run --rm \
+                        -v "${WORKSPACE}:/app" \
+                        -w /app \
+                        node:18-alpine \
+                        sh -c "npm test || true"
+                '''
             }
         }
 
@@ -28,6 +36,8 @@ pipeline {
                     withSonarQubeEnv("${SONAR_SERVER_NAME}") {
                         sh '''
                             docker run --rm \
+                                --network ${DOCKER_NETWORK} \
+                                --add-host=host.docker.internal:host-gateway \
                                 -e SONAR_HOST_URL="http://sonarqube:9000" \
                                 -e SONAR_TOKEN="${SONAR_TOKEN}" \
                                 -v "${WORKSPACE}:/usr/src" \
