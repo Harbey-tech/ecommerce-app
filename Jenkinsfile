@@ -94,6 +94,13 @@ pipeline {
         }
 
         stage('SonarQube Code Analysis') {
+            agent {
+                docker {
+                    image 'sonarsource/sonar-scanner-cli'
+                    args '--network bridge --add-host=host.docker.internal:host-gateway -u root:root'
+                    reuseNode true
+                }
+            }
             steps {
                 withCredentials([
                     string(
@@ -109,24 +116,16 @@ pipeline {
 
                             echo "===== SonarQube Analysis ====="
 
-                            mkdir -p "${WORKSPACE}/.scannerwork"
-                            chmod -R 777 "${WORKSPACE}/.scannerwork"
+                            export SONAR_USER_HOME=/tmp/.sonar
 
-                            docker run --rm \
-                                --user root:root \
-                                --network ${DOCKER_NETWORK} \
-                                --add-host=host.docker.internal:host-gateway \
-                                -e SONAR_HOST_URL="http://host.docker.internal:9000" \
-                                -e SONAR_TOKEN="${SONAR_TOKEN}" \
-                                -e SONAR_USER_HOME="/tmp/.sonar" \
-                                -v "${WORKSPACE}:/usr/src" \
-                                -w /usr/src \
-                                sonarsource/sonar-scanner-cli \
+                            sonar-scanner \
+                                -Dsonar.host.url="http://host.docker.internal:9000" \
+                                -Dsonar.token="${SONAR_TOKEN}" \
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
                                 -Dsonar.sources=frontend,backend \
                                 -Dsonar.exclusions="**/node_modules/**,**/dist/**,**/.git/**" \
-                                -Dsonar.working.directory=/usr/src/.scannerwork
+                                -Dsonar.working.directory=.scannerwork
                         '''
                     }
                 }
@@ -142,18 +141,20 @@ pipeline {
         }
 
         stage('Trivy Filesystem Security Scan') {
+            agent {
+                docker {
+                    image 'aquasec/trivy:latest'
+                    args '-u root:root'
+                    reuseNode true
+                }
+            }
             steps {
                 sh '''
                     set +e
 
                     echo "===== Trivy Filesystem Scan ====="
 
-                    docker run --rm \
-                        -v "${WORKSPACE}:/root/workspace" \
-                        aquasec/trivy:latest fs \
-                        /root/workspace \
-                        --severity HIGH,CRITICAL \
-                        --exit-code 0
+                    trivy fs . --severity HIGH,CRITICAL --exit-code 0
 
                     echo "Filesystem security scan completed."
                 '''
