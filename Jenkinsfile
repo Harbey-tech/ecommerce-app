@@ -23,7 +23,7 @@ pipeline {
                     sh '''
                         if [ -f package.json ]; then
                             docker run --rm \
-                                -v "$(pwd):/app" \
+                                -v "${WORKSPACE}/frontend:/app" \
                                 -w /app \
                                 node:18-alpine \
                                 sh -c "npm test || true"
@@ -46,10 +46,12 @@ pipeline {
                                 -e SONAR_HOST_URL="http://host.docker.internal:9000" \
                                 -e SONAR_TOKEN="${SONAR_TOKEN}" \
                                 -v "${WORKSPACE}:/usr/src" \
+                                -w /usr/src \
                                 sonarsource/sonar-scanner-cli \
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
-                                -Dsonar.sources=.
+                                -Dsonar.sources=frontend \
+                                -Dsonar.working.directory=/usr/src/.scannerwork
                         '''
                     }
                 }
