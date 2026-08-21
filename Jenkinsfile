@@ -40,6 +40,9 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     withSonarQubeEnv("${SONAR_SERVER_NAME}") {
                         sh '''
+                            mkdir -p "${WORKSPACE}/.scannerwork"
+                            chmod -R 777 "${WORKSPACE}/.scannerwork"
+
                             docker run --rm \
                                 --network ${DOCKER_NETWORK} \
                                 --add-host=host.docker.internal:host-gateway \
@@ -52,7 +55,7 @@ pipeline {
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
                                 -Dsonar.sources=frontend \
-                                -Dsonar.working.directory=/tmp/.scannerwork
+                                -Dsonar.working.directory=/usr/src/.scannerwork
                         '''
                     }
                 }
