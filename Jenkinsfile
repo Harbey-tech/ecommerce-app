@@ -28,54 +28,68 @@ pipeline {
         }
 
         stage('Frontend Build') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    args '-u root:root'
+                    reuseNode true
+                }
+            }
             steps {
-                sh '''
-                    set -e
+                dir('frontend') {
+                    sh '''
+                        set -e
 
-                    echo "===== Frontend Build ====="
+                        echo "===== Frontend Build ====="
 
-                    cd frontend
+                        echo "Node version:"
+                        node --version
 
-                    echo "Node version:"
-                    node --version || true
+                        echo "NPM version:"
+                        npm --version
 
-                    echo "NPM version:"
-                    npm --version || true
+                        echo "Installing frontend dependencies..."
+                        npm install
 
-                    echo "Installing frontend dependencies..."
-                    npm install
+                        echo "Building React/Vite application..."
+                        npm run build
 
-                    echo "Building React/Vite application..."
-                    npm run build
-
-                    echo "Frontend build completed successfully."
-                '''
+                        echo "Frontend build completed successfully."
+                    '''
+                }
             }
         }
 
         stage('Backend Validation') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    args '-u root:root'
+                    reuseNode true
+                }
+            }
             steps {
-                sh '''
-                    set -e
+                dir('backend') {
+                    sh '''
+                        set -e
 
-                    echo "===== Backend Validation ====="
+                        echo "===== Backend Validation ====="
 
-                    cd backend
+                        echo "Node version:"
+                        node --version
 
-                    echo "Node version:"
-                    node --version || true
+                        echo "NPM version:"
+                        npm --version
 
-                    echo "NPM version:"
-                    npm --version || true
+                        echo "Installing backend dependencies..."
+                        npm install
 
-                    echo "Installing backend dependencies..."
-                    npm install
+                        echo "Checking server.js syntax..."
+                        node --check server.js
 
-                    echo "Checking server.js syntax..."
-                    node --check server.js
-
-                    echo "Backend validation completed successfully."
-                '''
+                        echo "Backend validation completed successfully."
+                    '''
+                }
             }
         }
 
@@ -95,7 +109,11 @@ pipeline {
 
                             echo "===== SonarQube Analysis ====="
 
+                            mkdir -p "${WORKSPACE}/.scannerwork"
+                            chmod -R 777 "${WORKSPACE}/.scannerwork"
+
                             docker run --rm \
+                                --user root:root \
                                 --network ${DOCKER_NETWORK} \
                                 --add-host=host.docker.internal:host-gateway \
                                 -e SONAR_HOST_URL="http://host.docker.internal:9000" \
@@ -108,7 +126,7 @@ pipeline {
                                 -Dsonar.projectName=ecommerce-app \
                                 -Dsonar.sources=frontend,backend \
                                 -Dsonar.exclusions="**/node_modules/**,**/dist/**,**/.git/**" \
-                                -Dsonar.working.directory=/tmp/.scannerwork
+                                -Dsonar.working.directory=/usr/src/.scannerwork
                         '''
                     }
                 }
