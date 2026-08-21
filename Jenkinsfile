@@ -6,8 +6,8 @@ pipeline {
         AWS_ACCOUNT_ID    = '949193188574'
         ECR_REPO_NAME     = 'ecommerce-app'
         IMAGE_TAG         = "${BUILD_NUMBER}"
-        SONAR_SERVER_NAME = 'sonar-server' // Configured in Jenkins system settings
-        DOCKER_NETWORK    = 'bridge'       // Change to your custom network name if using one (e.g., 'jenkins-net')
+        SONAR_SERVER_NAME = 'sonar-server'
+        DOCKER_NETWORK    = 'bridge'
     }
 
     stages {
@@ -19,10 +19,10 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                // Runs npm inside a container to fix "npm: not found"
+                // Mounts the frontend directory where package.json is located
                 sh '''
                     docker run --rm \
-                        -v "${WORKSPACE}:/app" \
+                        -v "${WORKSPACE}/frontend:/app" \
                         -w /app \
                         node:18-alpine \
                         sh -c "npm test || true"
@@ -38,13 +38,13 @@ pipeline {
                             docker run --rm \
                                 --network ${DOCKER_NETWORK} \
                                 --add-host=host.docker.internal:host-gateway \
-                                -e SONAR_HOST_URL="http://sonarqube:9000" \
+                                -e SONAR_HOST_URL="http://host.docker.internal:9000" \
                                 -e SONAR_TOKEN="${SONAR_TOKEN}" \
                                 -v "${WORKSPACE}:/usr/src" \
                                 sonarsource/sonar-scanner-cli \
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
-                                -Dsonar.sources=.
+                                -Dsonar.sources=frontend,backend
                         '''
                     }
                 }
@@ -54,7 +54,6 @@ pipeline {
         stage('SonarQube Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
-                    // Requires SonarQube webhook -> http://<jenkins-url>/sonarqube-webhook/
                     waitForQualityGate abortPipeline: true
                 }
             }
@@ -76,7 +75,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}")
+                    // Points the build context directly to the frontend directory
+                    dockerImage = docker.build(
+                        "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}",
+                        "./frontend"
+                    )
                 }
             }
         }
