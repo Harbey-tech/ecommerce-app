@@ -45,13 +45,14 @@ pipeline {
                                 --add-host=host.docker.internal:host-gateway \
                                 -e SONAR_HOST_URL="http://host.docker.internal:9000" \
                                 -e SONAR_TOKEN="${SONAR_TOKEN}" \
+                                -e SONAR_USER_HOME="/tmp/.sonar" \
                                 -v "${WORKSPACE}:/usr/src" \
                                 -w /usr/src \
                                 sonarsource/sonar-scanner-cli \
                                 -Dsonar.projectKey=ecommerce-app \
                                 -Dsonar.projectName=ecommerce-app \
                                 -Dsonar.sources=frontend \
-                                -Dsonar.working.directory=/usr/src/.scannerwork
+                                -Dsonar.working.directory=/tmp/.scannerwork
                         '''
                     }
                 }
