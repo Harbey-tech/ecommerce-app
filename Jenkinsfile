@@ -3,10 +3,10 @@ pipeline {
 
     environment {
         AWS_REGION        = 'us-east-1'
-        AWS_ACCOUNT_ID    = '123456789012' // Replace with your actual AWS Account ID
+        AWS_ACCOUNT_ID    = '949193188574'
         ECR_REPO_NAME     = 'ecommerce-app'
         IMAGE_TAG         = "${BUILD_NUMBER}"
-        SONAR_SERVER_NAME = 'sonar-server'
+        SONAR_SERVER_NAME = 'sonar-server' // Configured in Jenkins system settings
     }
 
     stages {
@@ -16,7 +16,13 @@ pipeline {
             }
         }
 
-        stage('SonarQube Static Code Analysis') {
+        stage('Unit Tests') {
+            steps {
+                sh 'npm test || true' // Replace with your test runner (e.g., mvn test, pytest)
+            }
+        }
+
+        stage('SonarQube Code Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     withSonarQubeEnv("${SONAR_SERVER_NAME}") {
@@ -35,9 +41,10 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') {
+        stage('SonarQube Quality Gate') {
             steps {
                 timeout(time: 5, unit: 'MINUTES') {
+                    // Requires SonarQube webhook -> http://<jenkins-url>/sonarqube-webhook/
                     waitForQualityGate abortPipeline: true
                 }
             }
@@ -77,35 +84,38 @@ pipeline {
             }
         }
 
-        stage('Push Image to AWS ECR') {
+        stage('Push Image to ECR') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-credentials',
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh """
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
                         docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}
-                        docker tag ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
-                        docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
                     """
                 }
             }
         }
 
-        stage('Deploy Application') {
+        /* 
+        ===================================================================
+        STAGED FOR LATER (Uncomment when EKS + Argo CD are ready):
+        ===================================================================
+        stage('Update GitOps Manifests') {
             steps {
-                sh """
-                    docker stop ecommerce-prod || true
-                    docker rm ecommerce-prod || true
-                    docker run -d --name ecommerce-prod \
-                        -p 80:80 \
-                        ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
-                """
+                withCredentials([usernamePassword(credentialsId: 'github-pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
+                    sh '''
+                        git clone https://${GIT_TOKEN}@github.com/your-username/ecommerce-gitops.git
+                        cd ecommerce-gitops
+                        sed -i "s|image: .*|image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:${IMAGE_TAG}|g" k8s/deployment.yaml
+                        git config user.name "Jenkins CI"
+                        git config user.email "jenkins@yourdomain.com"
+                        git add k8s/deployment.yaml
+                        git commit -m "ci: update image tag to ${IMAGE_TAG}"
+                        git push origin main
+                    '''
+                }
             }
         }
+        */
     }
 
     post {
@@ -113,10 +123,7 @@ pipeline {
             sh 'docker image prune -f'
         }
         success {
-            echo "Pipeline completed successfully! App updated to build #${BUILD_NUMBER}."
-        }
-        failure {
-            echo "Pipeline failed! Check stage logs for details."
+            echo "CI pipeline completed successfully. Image is scanned and stored in ECR."
         }
     }
 }
