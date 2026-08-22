@@ -303,6 +303,12 @@ pipeline {
                         set -e
                         echo "===== Updating EKS Cluster ====="
 
+                        # Explicitly export the AWS credentials inside the container runtime
+                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
+                        export AWS_DEFAULT_REGION="${AWS_REGION}"
+
                         # Install kubectl inside the container temporary storage
                         curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                         chmod +x kubectl
