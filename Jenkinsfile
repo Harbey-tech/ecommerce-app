@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_REGION        = 'us-east-1'
         AWS_ACCOUNT_ID    = '949193188574'
-        EKS_CLUSTER_NAME  = 'ecommerce-backend'
+        EKS_CLUSTER_NAME  = 'ecommerce-eks-cluster'
 
         FRONTEND_ECR_REPO = 'ecommerce-frontend'
         BACKEND_ECR_REPO  = 'ecommerce-backend'
