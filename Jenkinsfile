@@ -299,13 +299,20 @@ pipeline {
                     sh '''
                         set -e
 
-                        echo "===== Updating image tags in Helm values ====="
+                        echo "===== Updating image tags in Helm values via Python ====="
 
-                        # Target frontend tag line directly via block structure
-                        sed -i '/ecommerce-frontend/{n;n;s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/}' helm/ecommerce-app/values.yaml
+                        python3 -c '
+                        import yaml
 
-                        # Target backend tag line directly via block structure
-                        sed -i '/ecommerce-backend/{n;n;s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/}' helm/ecommerce-app/values.yaml
+                        with open("helm/ecommerce-app/values.yaml", "r") as f:
+                            data = yaml.safe_load(f)
+
+                        data["frontend"]["image"]["tag"] = "${IMAGE_TAG}"
+                        data["backend"]["image"]["tag"] = "${IMAGE_TAG}"
+
+                        with open("helm/ecommerce-app/values.yaml", "w") as f:
+                            yaml.safe_dump(data, f, sort_keys=False)
+                        '
 
                         git config user.email "jenkins@ci.local"
                         git config user.name "Jenkins CI"
@@ -315,7 +322,7 @@ pipeline {
 
                         git push https://${GIT_USER}:${GIT_TOKEN}@github.com/Harbey-tech/ecommerce-app.git HEAD:main
 
-                        echo "Manifest updated — ArgoCD will sync automatically."
+                        echo "Manifest updated successfully — ArgoCD will sync automatically."
                     '''
                 }
             }
