@@ -1,43 +1,9 @@
-frontend:
-  replicaCount: 1
-  image:
-    repository: 949193188574.dkr.ecr.us-east-1.amazonaws.com/ecommerce-frontend
-    pullPolicy: IfNotPresent
-    tag: "19"
-  service:
-    type: LoadBalancer
-    port: 80
-    targetPort: 80
-  livenessProbe:
-    httpGet:
-      path: /
-      port: http
-  readinessProbe:
-    httpGet:
-      path: /
-      port: http
-  resources: {}
+replicaCount: 1
 
-backend:
-  replicaCount: 1
-  image:
-    repository: 949193188574.dkr.ecr.us-east-1.amazonaws.com/ecommerce-backend
-    pullPolicy: IfNotPresent
-    tag: "19"
-  service:
-    type: ClusterIP
-    port: 5000
-    targetPort: 5000
-  livenessProbe:
-    httpGet:
-      path: /health
-      port: http
-  readinessProbe:
-    httpGet:
-      path: /health
-      port: http
-  resources: {}
-  env: []
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -45,25 +11,13 @@ fullnameOverride: ""
 
 serviceAccount:
   create: true
-  automount: true
   annotations: {}
   name: ""
 
 podAnnotations: {}
-podLabels: {}
 podSecurityContext: {}
 securityContext: {}
-
-ingress:
-  enabled: false
-  className: ""
-  annotations: {}
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /health
-          pathType: ImplementationSpecific
-  tls: []
+resources: {}
 
 autoscaling:
   enabled: false
@@ -75,8 +29,29 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
-# Backend Environment Variables for PostgreSQL Connection
+frontend:
+  replicaCount: 1
+  image:
+    repository: harbeytech/ecommerce-frontend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 80
+  resources: {}
+
 backend:
+  replicaCount: 1
+  image:
+    repository: harbeytech/ecommerce-backend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  resources: {}
   env:
     - name: DB_HOST
       value: "ecommerce-app-postgres"
