@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_REGION        = 'us-east-1'
         AWS_ACCOUNT_ID    = '949193188574'
-        EKS_CLUSTER_NAME  = 'ecommerce-eks-cluster' // Update this to your actual EKS cluster name if different
+        EKS_CLUSTER_NAME  = 'ecommerce-eks-cluster'
 
         FRONTEND_ECR_REPO = 'ecommerce-frontend'
         BACKEND_ECR_REPO  = 'ecommerce-backend'
@@ -288,12 +288,25 @@ pipeline {
         }
 
         stage('Deploy to EKS') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli:latest'
+                    args '-u root:root'
+                    reuseNode true
+                }
+            }
             steps {
                 withCredentials([
                     [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']
                 ]) {
                     sh '''
+                        set -e
                         echo "===== Updating EKS Cluster ====="
+
+                        # Install kubectl inside the container temporary storage
+                        curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                        mv kubectl /usr/local/bin/
 
                         # Configure kubectl for your EKS cluster
                         aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
