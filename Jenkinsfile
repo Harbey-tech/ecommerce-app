@@ -301,8 +301,11 @@ pipeline {
 
                         echo "===== Updating image tags in Helm values ====="
 
-                        sed -i "0,/tag: \\"[0-9]*\\"/{s/tag: \\"[0-9]*\\"/tag: \\"${IMAGE_TAG}\\"/}" helm/ecommerce-app/values.yaml
-                        sed -i "0,/tag: \\"[0-9]*\\"/{s/tag: \\"[0-9]*\\"/tag: \\"${IMAGE_TAG}\\"/}" helm/ecommerce-app/values.yaml
+                        # Update Frontend tag using block context
+                        sed -i '/ecommerce-frontend/,/tag:/s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/' helm/ecommerce-app/values.yaml
+
+                        # Update Backend tag using block context
+                        sed -i '/ecommerce-backend/,/tag:/s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/' helm/ecommerce-app/values.yaml
 
                         git config user.email "jenkins@ci.local"
                         git config user.name "Jenkins CI"
