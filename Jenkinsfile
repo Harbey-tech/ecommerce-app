@@ -287,41 +287,32 @@ pipeline {
             }
         }
 
-        stage('Deploy to EKS') {
-            agent {
-                docker {
-                    image 'amazon/aws-cli:latest'
-                    args '-u root:root --entrypoint=""'
-                    reuseNode true
-                }
-            }
+        stage('Update GitOps Manifest') {
             steps {
                 withCredentials([
-                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']
+                    usernamePassword(
+                        credentialsId: 'github-credentials',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
                 ]) {
                     sh '''
                         set -e
-                        echo "===== Updating EKS Cluster ====="
 
-                        # Explicitly export the AWS credentials inside the container runtime
-                        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
-                        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
-                        export AWS_SESSION_TOKEN="${AWS_SESSION_TOKEN}"
-                        export AWS_DEFAULT_REGION="${AWS_REGION}"
+                        echo "===== Updating image tags in Helm values ====="
 
-                        # Install kubectl inside the container temporary storage
-                        curl -sLO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                        mv kubectl /usr/local/bin/
+                        sed -i "0,/tag: \\"[0-9]*\\"/{s/tag: \\"[0-9]*\\"/tag: \\"${IMAGE_TAG}\\"/}" helm/ecommerce-app/values.yaml
+                        sed -i "0,/tag: \\"[0-9]*\\"/{s/tag: \\"[0-9]*\\"/tag: \\"${IMAGE_TAG}\\"/}" helm/ecommerce-app/values.yaml
 
-                        # Configure kubectl for your EKS cluster
-                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
+                        git config user.email "jenkins@ci.local"
+                        git config user.name "Jenkins CI"
 
-                        # Update the deployment images with the new build tag
-                        kubectl set image deployment/ecommerce-app-backend ecommerce-app-backend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_ECR_REPO}:${IMAGE_TAG} -n ecommerce
-                        kubectl set image deployment/ecommerce-app-frontend ecommerce-app-frontend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_ECR_REPO}:${IMAGE_TAG} -n ecommerce
+                        git add helm/ecommerce-app/values.yaml
+                        git commit -m "Bump image tags to ${IMAGE_TAG}" || echo "No changes to commit"
 
-                        echo "Deployment updated successfully."
+                        git push https://${GIT_USER}:${GIT_TOKEN}@github.com/Harbey-tech/ecommerce-app.git HEAD:main
+
+                        echo "Manifest updated — ArgoCD will sync automatically."
                     '''
                 }
             }
@@ -349,7 +340,7 @@ pipeline {
             Backend Image:
             ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_ECR_REPO}:${IMAGE_TAG}
 
-            Images pushed to ECR and deployed to EKS cluster successfully!
+            Images pushed to ECR. Helm values updated in Git — ArgoCD will deploy the change automatically.
             ================================================
             """
         }
