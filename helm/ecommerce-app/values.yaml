@@ -74,3 +74,17 @@ autoscaling:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Backend Environment Variables for PostgreSQL Connection
+backend:
+  env:
+    - name: DB_HOST
+      value: "ecommerce-app-postgres"
+    - name: DB_USER
+      value: "postgres"
+    - name: DB_PASSWORD
+      value: "postgres"
+    - name: DB_NAME
+      value: "ecommerce"
+    - name: DB_PORT
+      value: "5432"

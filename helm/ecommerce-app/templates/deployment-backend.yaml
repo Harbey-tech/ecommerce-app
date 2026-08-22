@@ -16,10 +16,6 @@ spec:
       labels:
         {{- include "ecommerce-app.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: backend
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
     spec:
       serviceAccountName: {{ include "ecommerce-app.serviceAccountName" . }}
       containers:
@@ -28,15 +24,9 @@ spec:
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.backend.service.targetPort }}
+              containerPort: 5000
               protocol: TCP
-          {{- with .Values.backend.env }}
+          {{- if .Values.backend.env }}
           env:
-            {{- toYaml . | nindent 12 }}
+            {{- toYaml .Values.backend.env | nindent 12 }}
           {{- end }}
-          livenessProbe:
-            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
-          resources:
-            {{- toYaml .Values.backend.resources | nindent 12 }}
