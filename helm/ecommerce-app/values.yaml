@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: nginx
   pullPolicy: IfNotPresent
-  tag: ""
+  tag: "29"
 
 imagePullSecrets:
   - name: ecr-registry-secret
