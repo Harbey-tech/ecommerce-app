@@ -4,6 +4,7 @@ pipeline {
     environment {
         AWS_REGION        = 'us-east-1'
         AWS_ACCOUNT_ID    = '949193188574'
+        EKS_CLUSTER_NAME  = 'ecommerce-eks-cluster' // Update this to your actual EKS cluster name if different
 
         FRONTEND_ECR_REPO = 'ecommerce-frontend'
         BACKEND_ECR_REPO  = 'ecommerce-backend'
@@ -285,6 +286,27 @@ pipeline {
                 '''
             }
         }
+
+        stage('Deploy to EKS') {
+            steps {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']
+                ]) {
+                    sh '''
+                        echo "===== Updating EKS Cluster ====="
+
+                        # Configure kubectl for your EKS cluster
+                        aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER_NAME}
+
+                        # Update the deployment images with the new build tag
+                        kubectl set image deployment/ecommerce-app-backend ecommerce-app-backend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_ECR_REPO}:${IMAGE_TAG} -n ecommerce
+                        kubectl set image deployment/ecommerce-app-frontend ecommerce-app-frontend=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_ECR_REPO}:${IMAGE_TAG} -n ecommerce
+
+                        echo "Deployment updated successfully."
+                    '''
+                }
+            }
+        }
     }
 
     post {
@@ -299,7 +321,7 @@ pipeline {
         success {
             echo """
             ================================================
-            CI PIPELINE COMPLETED SUCCESSFULLY
+            CI/CD PIPELINE COMPLETED SUCCESSFULLY
             ================================================
 
             Frontend Image:
@@ -308,7 +330,7 @@ pipeline {
             Backend Image:
             ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_ECR_REPO}:${IMAGE_TAG}
 
-            Images have been scanned and pushed to Amazon ECR.
+            Images pushed to ECR and deployed to EKS cluster successfully!
             ================================================
             """
         }
