@@ -5,7 +5,7 @@ frontend:
     pullPolicy: IfNotPresent
     tag: "19"
   service:
-    type: ClusterIP
+    type: LoadBalancer
     port: 80
     targetPort: 80
   livenessProbe:
