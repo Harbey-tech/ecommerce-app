@@ -299,20 +299,10 @@ pipeline {
                     sh '''
                         set -e
 
-                        echo "===== Updating image tags in Helm values via Python ====="
+                        echo "===== Updating image tags in Helm values via sed ====="
 
-                        python3 -c '
-                        import yaml
-
-                        with open("helm/ecommerce-app/values.yaml", "r") as f:
-                            data = yaml.safe_load(f)
-
-                        data["frontend"]["image"]["tag"] = "${IMAGE_TAG}"
-                        data["backend"]["image"]["tag"] = "${IMAGE_TAG}"
-
-                        with open("helm/ecommerce-app/values.yaml", "w") as f:
-                            yaml.safe_dump(data, f, sort_keys=False)
-                        '
+                        sed -i '/frontend:/,/repository:/ { /tag:/s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/ }' helm/ecommerce-app/values.yaml
+                        sed -i '/backend:/,/repository:/ { /tag:/s/tag: "[0-9]*"/tag: "'"${IMAGE_TAG}"'"/ }' helm/ecommerce-app/values.yaml
 
                         git config user.email "jenkins@ci.local"
                         git config user.name "Jenkins CI"
