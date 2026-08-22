@@ -46,7 +46,7 @@ frontend:
   replicaCount: 1
   image:
     repository: 949193188574.dkr.ecr.us-east-1.amazonaws.com/ecommerce-frontend
-    tag: "19"
+    tag: "30"
     pullPolicy: Always
   service:
     type: LoadBalancer
@@ -58,7 +58,7 @@ backend:
   replicaCount: 1
   image:
     repository: 949193188574.dkr.ecr.us-east-1.amazonaws.com/ecommerce-backend
-    tag: "19"
+    tag: "30"
     pullPolicy: Always
   service:
     type: ClusterIP
