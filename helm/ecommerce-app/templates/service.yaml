@@ -8,8 +8,8 @@ metadata:
 spec:
   type: {{ .Values.frontend.service.type }}
   ports:
-    - port: {{ .Values.frontend.service.port }}
-      targetPort: http
+    - port: 80
+      targetPort: 80
       protocol: TCP
       name: http
   selector:
@@ -26,8 +26,8 @@ metadata:
 spec:
   type: {{ .Values.backend.service.type }}
   ports:
-    - port: {{ .Values.backend.service.port }}
-      targetPort: http
+    - port: 5000
+      targetPort: 5000
       protocol: TCP
       name: http
   selector:
